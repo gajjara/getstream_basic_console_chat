@@ -31,8 +31,8 @@ const client = new ApolloClient({
  * @param {gql} query the query
  * @returns {object} the data from the query
  */
-const query_db = async (query) => {
-    const job = await client.query({query: query,});
+const query_db = async (query, variables) => {
+    const job = await client.query({query: query, variables: variables});
     console.log(job.data);
     return job.data;
 } 
@@ -62,6 +62,16 @@ const add_user = async (email) => {
           email
           type
           id
+          chat_id
+          chat_token
+        }
+      }`,variables={email});
+    return result;
+}
+
+const get_user = async (email) => {
+    result = await query_db(gql`query UserByEmail($email: String!) {
+        userByEmail(email: $email) {
           chat_id
           chat_token
         }
@@ -99,10 +109,18 @@ const send_messages = async (channel) => {
  * Main routine.
  */
 const main = async () => {
-    // Add the new user and get chat id and chat token
-    const user_added = await add_user(env.USER_EX);
-    const id = user_added.createUser.chat_id;
-    const chat_token = user_added.createUser.chat_token;
+    // Add/get the new user and get chat id and chat token
+    var user_added = null;
+    try {
+        user_added = await add_user(env.USER_EX);
+        user_added = user_added.createUser;
+    }
+    catch {
+        user_added = await get_user(env.USER_EX);
+        user_added = user_added.userByEmail;
+    }
+    const id = user_added.chat_id;
+    const chat_token = user_added.chat_token;
 
     // Connect the user
     await streamServerClient.connectUser({id: id,}, chat_token);
@@ -117,8 +135,8 @@ const main = async () => {
     // Listen for message 
     streamServerClient.on(event => { 
         if(event.message) {
-            if(event.message.user.id !== id) {
-                console.log("Recieved message: " + event.message.text + "\n");
+            if(event.message.user.id !== id && event.message.cid === channel.cid) {
+                console.log("\x1b[31mRecieved message: " + event.message.text + "\n" + "\x1b[30m");
             }
         }
     });

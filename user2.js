@@ -59,8 +59,8 @@ const main = async () => {
     // Listen for message 
     streamServerClient.on(event => { 
         if(event.message) {
-            if(event.message.user.id !== id) {
-                console.log("Recieved message: " + event.message.text);
+            if(event.message.user.id !== id && event.message.cid === channels[0].cid) {
+                console.log("\x1b[31mRecieved message: " + event.message.text + "\n" + "\x1b[30m");
             }
         }
     });
